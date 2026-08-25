@@ -328,17 +328,36 @@
             const microCtx = microCanvas.getContext('2d');
 
             microCtx.drawImage(video, 0, 0, gridW, gridH);
-            const rawPixels = microCtx.getImageData(0, 0, gridW, gridH).data;
+            const imgData = microCtx.getImageData(0, 0, gridW, gridH);
+            const rawPixels = imgData.data;
 
             const grayBytes = new Uint8Array(gridW * gridH);
             for (let i = 0, j = 0; i < rawPixels.length; i += 4, j++) {
                 const r = rawPixels[i];
                 const g = rawPixels[i + 1];
                 const b = rawPixels[i + 2];
-                grayBytes[j] = Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
+                const gray = Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
+                
+                grayBytes[j] = gray;
+
+                // Canvas保存用にRGBをグレースケール値で上書き
+                rawPixels[i] = gray;
+                rawPixels[i + 1] = gray;
+                rawPixels[i + 2] = gray;
             }
 
-            // 3. モードに応じた文字生成と保存
+            // 48x36 グレースケール画像をCanvasへ反映し、PNGファイルとしてダウンロード保存
+            microCtx.putImageData(imgData, 0, 0);
+            microCanvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `grayscale_48x36_${timestamp}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+
+            // 3. モードに応じた文字生成とテキスト保存
             if (currentMode === 'tifinagh' || currentMode === 'both') {
                 const tifinaghText = encodeBits(grayBytes, TIFINAGH_32, 5);
                 tifinaghOutput.innerText = tifinaghText;
