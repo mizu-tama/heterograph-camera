@@ -42,7 +42,7 @@
 
         .switch-container {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             width: 100%;
             max-width: 440px;
             margin-top: 12px;
@@ -52,10 +52,11 @@
             background: #1e293b;
             color: #94a3b8;
             border: 1px solid #334155;
-            padding: 8px;
-            font-size: 0.8rem;
+            padding: 8px 4px;
+            font-size: 0.75rem;
             border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s;
         }
         .mode-btn.active {
             background: #0369a1;
@@ -90,6 +91,11 @@
             margin-top: 12px;
             display: flex;
             flex-direction: column;
+            gap: 10px;
+        }
+        .output-box-wrap {
+            display: flex;
+            flex-direction: column;
             gap: 4px;
         }
         .output-label {
@@ -98,20 +104,25 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        #text-output {
+        .text-output {
             width: 100%;
-            height: 180px;
+            height: 130px;
             background: #020617;
             border: 1px solid #0369a1;
             border-radius: 8px;
             color: #22d3ee;
-            font-family: 'Noto Sans Tifinagh', monospace;
             font-size: 11px;
             line-height: 15px;
             word-break: break-all;
             overflow-y: auto;
             padding: 10px;
             letter-spacing: 1.5px;
+        }
+        .tifinagh-font {
+            font-family: 'Noto Sans Tifinagh', monospace;
+        }
+        .hiragana-font {
+            font-family: monospace;
         }
     </style>
 </head>
@@ -126,10 +137,11 @@
         <video id="camera-view" autoplay playsinline muted></video>
     </div>
 
-    <!-- 文字体系切り替え -->
+    <!-- 文字体系切り替え（3モード） -->
     <div class="switch-container">
-        <button id="mode-tifinagh" class="mode-btn active">ⵜⵉⴼⵉⵏⴰⵖ (Tifinagh)</button>
-        <button id="mode-hiragana" class="mode-btn">ひらがな (Hiragana)</button>
+        <button id="mode-tifinagh" class="mode-btn active">ⵜⵉⴼⵉⵏⴰⵖ</button>
+        <button id="mode-hiragana" class="mode-btn">ひらがな</button>
+        <button id="mode-both" class="mode-btn">両方 (Dual)</button>
     </div>
 
     <div class="controls">
@@ -137,13 +149,21 @@
         <button id="capture-btn" class="action-btn" disabled>シャッターを切る</button>
     </div>
 
+    <!-- 出力コンテナ（個別ボックス） -->
     <div id="output-container">
-        <span class="output-label" id="output-label">Tifinagh Binary Stream</span>
-        <div id="text-output">Ready. カメラを起動してください。</div>
+        <div id="tifinagh-wrap" class="output-box-wrap">
+            <span class="output-label">Tifinagh Binary Stream</span>
+            <div id="tifinagh-output" class="text-output tifinagh-font">Ready. カメラを起動してください。</div>
+        </div>
+
+        <div id="hiragana-wrap" class="output-box-wrap" style="display: none;">
+            <span class="output-label">Hiragana Binary Stream</span>
+            <div id="hiragana-output" class="text-output hiragana-font">Ready. カメラを起動してください。</div>
+        </div>
     </div>
 
     <script>
-        // 1. 自立した32文字（5ビット Base32）テーブル
+        // 自立した32文字（5ビット Base32）テーブル
         const TIFINAGH_32 = [
             'ⴰ', 'ⴱ', 'ⴳ', 'ⴷ', 'ⴹ', 'ⴻ', 'ⴼ', 'ⴽ',
             'ⵀ', 'ⵃ', 'ⵄ', 'ⵅ', 'ⵇ', 'ⵉ', 'ⵊ', 'ⵍ',
@@ -158,32 +178,43 @@
             'の', 'は', 'ひ', 'ふ', 'へ', 'ほ', 'ま', 'み'
         ];
 
-        let currentMode = 'tifinagh'; // 'tifinagh' | 'hiragana'
+        let currentMode = 'tifinagh'; // 'tifinagh' | 'hiragana' | 'both'
 
         const video = document.getElementById('camera-view');
         const startBtn = document.getElementById('start-btn');
         const captureBtn = document.getElementById('capture-btn');
-        const outputDisplay = document.getElementById('text-output');
-        const outputLabel = document.getElementById('output-label');
+
         const modeTifinaghBtn = document.getElementById('mode-tifinagh');
         const modeHiraganaBtn = document.getElementById('mode-hiragana');
+        const modeBothBtn = document.getElementById('mode-both');
 
-        // モード切り替えイベント
-        modeTifinaghBtn.addEventListener('click', () => {
-            currentMode = 'tifinagh';
-            modeTifinaghBtn.classList.add('active');
-            modeHiraganaBtn.classList.remove('active');
-            outputLabel.innerText = 'Tifinagh Binary Stream';
-            outputDisplay.style.fontFamily = "'Noto Sans Tifinagh', monospace";
-        });
+        const tifinaghWrap = document.getElementById('tifinagh-wrap');
+        const hiraganaWrap = document.getElementById('hiragana-wrap');
+        const tifinaghOutput = document.getElementById('tifinagh-output');
+        const hiraganaOutput = document.getElementById('hiragana-output');
 
-        modeHiraganaBtn.addEventListener('click', () => {
-            currentMode = 'hiragana';
-            modeHiraganaBtn.classList.add('active');
-            modeTifinaghBtn.classList.remove('active');
-            outputLabel.innerText = 'Hiragana Binary Stream';
-            outputDisplay.style.fontFamily = "monospace";
-        });
+        // モード変更処理
+        function setMode(mode) {
+            currentMode = mode;
+            modeTifinaghBtn.classList.toggle('active', mode === 'tifinagh');
+            modeHiraganaBtn.classList.toggle('active', mode === 'hiragana');
+            modeBothBtn.classList.toggle('active', mode === 'both');
+
+            if (mode === 'tifinagh') {
+                tifinaghWrap.style.display = 'flex';
+                hiraganaWrap.style.display = 'none';
+            } else if (mode === 'hiragana') {
+                tifinaghWrap.style.display = 'none';
+                hiraganaWrap.style.display = 'flex';
+            } else if (mode === 'both') {
+                tifinaghWrap.style.display = 'flex';
+                hiraganaWrap.style.display = 'flex';
+            }
+        }
+
+        modeTifinaghBtn.addEventListener('click', () => setMode('tifinagh'));
+        modeHiraganaBtn.addEventListener('click', () => setMode('hiragana'));
+        modeBothBtn.addEventListener('click', () => setMode('both'));
 
         // カメラ起動
         startBtn.addEventListener('click', async () => {
@@ -201,9 +232,12 @@
                 
                 startBtn.style.display = 'none';
                 captureBtn.disabled = false;
-                outputDisplay.innerText = 'カメラ待機中：シャッターを押すと変換・保存が実行されます';
+                tifinaghOutput.innerText = 'カメラ待機中：シャッターを押すと変換・保存が実行されます';
+                hiraganaOutput.innerText = 'カメラ待機中：シャッターを押すと変換・保存が実行されます';
             } catch (err) {
-                outputDisplay.innerText = 'エラー: カメラへのアクセスが拒否されました。\n' + err.message;
+                const errMsg = 'エラー: カメラへのアクセスが拒否されました。\n' + err.message;
+                tifinaghOutput.innerText = errMsg;
+                hiraganaOutput.innerText = errMsg;
             }
         });
 
@@ -232,12 +266,22 @@
             return encoded;
         }
 
-        // シャッター & 同時保存
+        // テキストファイルのダウンロード補助関数
+        function saveTextFile(text, filename) {
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // シャッター & 保存
         captureBtn.addEventListener('click', () => {
             if (!video.videoWidth || !video.videoHeight) return;
 
             const timestamp = Date.now();
-            const table = (currentMode === 'tifinagh') ? TIFINAGH_32 : HIRAGANA_32;
 
             // 1. 通常写真の保存 (JPEG)
             const fullCanvas = document.createElement('canvas');
@@ -274,18 +318,18 @@
                 grayBytes[j] = Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
             }
 
-            // 文字列変換
-            const encodedText = encodeBase32(grayBytes, table);
-            outputDisplay.innerText = encodedText;
+            // 3. モードに応じた文字生成と保存
+            if (currentMode === 'tifinagh' || currentMode === 'both') {
+                const tifinaghText = encodeBase32(grayBytes, TIFINAGH_32);
+                tifinaghOutput.innerText = tifinaghText;
+                saveTextFile(tifinaghText, `tifinagh_${timestamp}.txt`);
+            }
 
-            // テキストファイル (.txt) 保存
-            const textBlob = new Blob([encodedText], { type: 'text/plain;charset=utf-8' });
-            const textUrl = URL.createObjectURL(textBlob);
-            const textLink = document.createElement('a');
-            textLink.href = textUrl;
-            textLink.download = `${currentMode}_${timestamp}.txt`;
-            textLink.click();
-            URL.revokeObjectURL(textUrl);
+            if (currentMode === 'hiragana' || currentMode === 'both') {
+                const hiraganaText = encodeBase32(grayBytes, HIRAGANA_32);
+                hiraganaOutput.innerText = hiraganaText;
+                saveTextFile(hiraganaText, `hiragana_${timestamp}.txt`);
+            }
         });
     </script>
 </body>
