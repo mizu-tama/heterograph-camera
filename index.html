@@ -149,15 +149,15 @@
         <button id="capture-btn" class="action-btn" disabled>シャッターを切る</button>
     </div>
 
-    <!-- 出力コンテナ（個別ボックス） -->
+    <!-- 出力コンテナ -->
     <div id="output-container">
         <div id="tifinagh-wrap" class="output-box-wrap">
-            <span class="output-label">Tifinagh Binary Stream</span>
+            <span class="output-label">Tifinagh Binary Stream (5-bit)</span>
             <div id="tifinagh-output" class="text-output tifinagh-font">Ready. カメラを起動してください。</div>
         </div>
 
         <div id="hiragana-wrap" class="output-box-wrap" style="display: none;">
-            <span class="output-label">Hiragana Binary Stream</span>
+            <span class="output-label">Hiragana Binary Stream (6-bit)</span>
             <div id="hiragana-output" class="text-output hiragana-font">Ready. カメラを起動してください。</div>
         </div>
     </div>
@@ -183,11 +183,18 @@
             'ⵅ', 'ⵊ', 'ⵄ', 'ⵀ'
         ];
 
-        const HIRAGANA_32 = [
-            'あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く',
-            'け', 'こ', 'さ', 'し', 'す', 'せ', 'そ', 'た',
-            'ち', 'つ', 'て', 'と', 'な', 'に', 'ぬ', 'ね',
-            'の', 'は', 'ひ', 'ふ', 'へ', 'ほ', 'ま', 'み'
+        // ひらがな 配列（Base64 / 6bit / 64文字）
+        // 輝度分布（暗部偏重）と日本語コーパス頻度をマッピング
+        const HIRAGANA_64 = [
+            'ぱ', 'ぴ', 'ぷ', 'ぺ',
+            'ぽ', 'ゃ', 'ゅ', 'ょ', 'ば', 'ほ',
+            'え', 'ふ', 'わ', 'へ', 'む', 'や',
+            'れ', 'で', 'が', 'か', 'く', 'ら', 'う', 'っ',
+            'の', 'い', 'て', 'た', 'し', 'に', 'る', 'は',
+            'と', 'な', 'も', 'こ', 'お', 'す', 'ま', 'り',
+            'け', 'さ', 'ん', 'を', 'つ', 'ち', 'き', 'よ',
+            'め', 'み', 'せ', 'だ', 'あ', 'じ', 'ど', 'そ',
+            'ご', 'ろ', 'ゆ', 'ず', 'ね', 'ぬ', 'ひ', 'び'
         ];
 
         let currentMode = 'tifinagh'; // 'tifinagh' | 'hiragana' | 'both'
@@ -253,25 +260,26 @@
             }
         });
 
-        // 5ビット単位のエンコード処理（Base32）
-        function encodeBase32(uint8Array, table) {
+        // 汎用ビット単位エンコード処理（5-bit / 6-bit 対応）
+        function encodeBits(uint8Array, table, bits) {
             let encoded = '';
             let bitBuffer = 0;
             let bitCount = 0;
+            const mask = (1 << bits) - 1;
 
             for (let i = 0; i < uint8Array.length; i++) {
                 bitBuffer = (bitBuffer << 8) | uint8Array[i];
                 bitCount += 8;
 
-                while (bitCount >= 5) {
-                    bitCount -= 5;
-                    const index = (bitBuffer >> bitCount) & 0x1F;
+                while (bitCount >= bits) {
+                    bitCount -= bits;
+                    const index = (bitBuffer >> bitCount) & mask;
                     encoded += table[index];
                 }
             }
 
             if (bitCount > 0) {
-                const index = (bitBuffer << (5 - bitCount)) & 0x1F;
+                const index = (bitBuffer << (bits - bitCount)) & mask;
                 encoded += table[index];
             }
 
@@ -332,13 +340,13 @@
 
             // 3. モードに応じた文字生成と保存
             if (currentMode === 'tifinagh' || currentMode === 'both') {
-                const tifinaghText = encodeBase32(grayBytes, TIFINAGH_32);
+                const tifinaghText = encodeBits(grayBytes, TIFINAGH_32, 5);
                 tifinaghOutput.innerText = tifinaghText;
                 saveTextFile(tifinaghText, `tifinagh_${timestamp}.txt`);
             }
 
             if (currentMode === 'hiragana' || currentMode === 'both') {
-                const hiraganaText = encodeBase32(grayBytes, HIRAGANA_32);
+                const hiraganaText = encodeBits(grayBytes, HIRAGANA_64, 6);
                 hiraganaOutput.innerText = hiraganaText;
                 saveTextFile(hiraganaText, `hiragana_${timestamp}.txt`);
             }
