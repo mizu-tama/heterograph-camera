@@ -302,13 +302,33 @@
             if (!video.videoWidth || !video.videoHeight) return;
 
             const timestamp = Date.now();
+            const videoW = video.videoWidth;
+            const videoH = video.videoHeight;
+            const videoAspect = videoW / videoH;
+            const targetAspect = 4 / 3; // 48 / 36
 
-            // 1. 通常写真の保存 (JPEG)
+            // 4:3 の中央クロップ範囲を算出
+            let sx, sy, sw, sh;
+            if (videoAspect > targetAspect) {
+                // 横長の場合：左右をトリミング
+                sh = videoH;
+                sw = videoH * targetAspect;
+                sx = (videoW - sw) / 2;
+                sy = 0;
+            } else {
+                // 縦長の場合：上下をトリミング
+                sw = videoW;
+                sh = videoW / targetAspect;
+                sx = 0;
+                sy = (videoH - sh) / 2;
+            }
+
+            // 1. 通常写真の保存 (JPEG：画面と同じ4:3でクロップ保存)
             const fullCanvas = document.createElement('canvas');
-            fullCanvas.width = video.videoWidth;
-            fullCanvas.height = video.videoHeight;
+            fullCanvas.width = sw;
+            fullCanvas.height = sh;
             const fullCtx = fullCanvas.getContext('2d');
-            fullCtx.drawImage(video, 0, 0);
+            fullCtx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
 
             fullCanvas.toBlob((blob) => {
                 const url = URL.createObjectURL(blob);
@@ -327,7 +347,8 @@
             microCanvas.height = gridH;
             const microCtx = microCanvas.getContext('2d');
 
-            microCtx.drawImage(video, 0, 0, gridW, gridH);
+            // 中央クロップした領域を 48x36 に描画
+            microCtx.drawImage(video, sx, sy, sw, sh, 0, 0, gridW, gridH);
             const imgData = microCtx.getImageData(0, 0, gridW, gridH);
             const rawPixels = imgData.data;
 
