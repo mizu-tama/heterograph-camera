@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeteroGraph Decoder</title>
+    <style>
+        :root {
+            --bg-main: #090d16;
+            --bg-card: #0f172a;
+            --bg-input: #020617;
+            --border: #1e293b;
+            --accent: #38bdf8;
+            --accent-btn: #0284c7;
+            --accent-btn-hover: #0369a1;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-main);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 1.3rem;
+            letter-spacing: 3px;
+            font-weight: 600;
+        }
+        p.subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            background: var(--bg-input);
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(56, 189, 248, 0.05);
+        }
+        .drop-zone p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .drop-zone span.highlight {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--accent);
+            font-size: 12px;
+            line-height: 1.5;
+            resize: vertical;
+            outline: none;
+        }
+        textarea:focus {
+            border-color: var(--accent);
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            background: var(--bg-input);
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        .status-row span.val {
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        /* 復元画像表示エリア */
+        .decode-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            gap: 16px;
+        }
+        canvas#decode-canvas {
+            width: 288px; /* 48 * 6 */
+            height: 216px; /* 36 * 6 */
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 1px solid var(--border);
+            background: #000;
+        }
+
+        button {
+            background: var(--accent-btn);
+            color: #ffffff;
+            border: none;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: var(--accent-btn-hover);
+        }
+        button:disabled {
+            background: #334155;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>HETEROGRAPH DECODER</h1>
+        <p class="subtitle">Lossless Image Reconstruction Engine</p>
+    </header>
+
+    <div class="container">
+        <div class="panel">
+            <div class="section-title">1. Text Input</div>
+            <div class="drop-zone" id="drop-zone">
+                <p>フォーマット済みまたはRAWテキスト（.txt）をドロップ<br>または <span class="highlight">ファイルを選択</span></p>
+                <input type="file" id="file-input" accept=".txt">
+            </div>
+
+            <textarea id="paste-input" placeholder="または、ここにテキストを直接ペーストしてください..."></textarea>
+
+            <div class="status-row">
+                <span>検出データ:</span>
+                <span class="val" id="status-mode">None</span>
+            </div>
+            <div class="status-row">
+                <span>抽出バイト数:</span>
+                <span class="val" id="status-bytes">0 / 1728 Bytes</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">2. Reconstructed Image (48×36 RAW)</div>
+            <div class="decode-view">
+                <canvas id="decode-canvas" width="48" height="36"></canvas>
+                <button id="save-png-btn" disabled>復元PNGを保存 (.png)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TIFINAGH_32 = [
+            'ⵠ', 'ⵥ', 'ⵕ', 'ⴹ', 'ⵚ', 'ⵟ', 'ⵛ', 'ⵣ',
+            'ⴱ', 'ⵃ', 'ⵎ', 'ⵙ', 'ⴰ', 'ⵜ', 'ⵏ', 'ⵉ',
+            'ⵍ', 'ⵔ', 'ⴷ', 'ⵓ', 'ⴻ', 'ⵢ', 'ⵡ', 'ⴼ',
+            'ⴽ', 'ⴳ', 'ⵖ', 'ⵇ', 'ⵅ', 'ⵊ', 'ⵄ', 'ⵀ'
+        ];
+
+        const HIRAGANA_64 = [
+            'ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ', 'ゃ', 'ゅ', 'ょ', 'ば', 'ほ',
+            'え', 'ふ', 'わ', 'へ', 'む', 'や', 'れ', 'で', 'が', 'か',
+            'く', 'ら', 'う', 'っ', 'の', 'い', 'て', 'た', 'し', 'に',
+            'る', 'は', 'と', 'な', 'も', 'こ', 'お', 'す', 'ま', 'り',
+            'け', 'さ', 'ん', 'を', 'つ', 'ち', 'き', 'よ', 'め', 'み',
+            'せ', 'だ', 'あ', 'じ', 'ど', 'そ', 'ご', 'ろ', 'ゆ', 'ず',
+            'ね', 'ぬ', 'ひ', 'び'
+        ];
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const pasteInput = document.getElementById('paste-input');
+        const statusMode = document.getElementById('status-mode');
+        const statusBytes = document.getElementById('status-bytes');
+        const decodeCanvas = document.getElementById('decode-canvas');
+        const savePngBtn = document.getElementById('save-png-btn');
+        const ctx = decodeCanvas.getContext('2d');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+        pasteInput.addEventListener('input', (e) => processText(e.target.value));
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                pasteInput.value = e.target.result;
+                processText(e.target.result);
+            };
+            reader.readAsText(file);
+        }
+
+        function processText(rawText) {
+            const text = rawText.trim();
+            const pureHiragana = text.replace(/[^ぁ-ん]/g, '');
+            const pureTifinagh = text.replace(/[^\u2D30-\u2D7F]/g, '');
+
+            let mode = null;
+            let stream = '';
+
+            if (pureHiragana.length >= pureTifinagh.length && pureHiragana.length > 0) {
+                mode = 'hiragana';
+                stream = pureHiragana;
+            } else if (pureTifinagh.length > 0) {
+                mode = 'tifinagh';
+                stream = pureTifinagh;
+            }
+
+            if (!mode) {
+                statusMode.innerText = 'None';
+                statusBytes.innerText = '0 / 1728 Bytes';
+                savePngBtn.disabled = true;
+                clearCanvas();
+                return;
+            }
+
+            const table = (mode === 'hiragana') ? HIRAGANA_64 : TIFINAGH_32;
+            const bits = (mode === 'hiragana') ? 6 : 5;
+            const map = new Map(table.map((c, i) => [c, i]));
+
+            let bitBuffer = 0;
+            let bitCount = 0;
+            const bytes = [];
+
+            for (const char of stream) {
+                const val = map.get(char);
+                if (val === undefined) continue;
+
+                bitBuffer = (bitBuffer << bits) | val;
+                bitCount += bits;
+
+                while (bitCount >= 8) {
+                    bitCount -= 8;
+                    bytes.push((bitBuffer >> bitCount) & 0xFF);
+                }
+            }
+
+            statusMode.innerText = (mode === 'hiragana') ? `Hiragana (${stream.length} chars)` : `Tifinagh (${stream.length} chars)`;
+            statusBytes.innerText = `${bytes.length} / 1728 Bytes`;
+
+            renderImage(bytes);
+            savePngBtn.disabled = (bytes.length === 0);
+        }
+
+        function renderImage(bytes) {
+            const imgData = ctx.createImageData(48, 36);
+            for (let i = 0; i < 48 * 36; i++) {
+                const gray = bytes[i] ?? 0;
+                imgData.data[i * 4 + 0] = gray;
+                imgData.data[i * 4 + 1] = gray;
+                imgData.data[i * 4 + 2] = gray;
+                imgData.data[i * 4 + 3] = 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 48, 36);
+        }
+
+        savePngBtn.addEventListener('click', () => {
+            decodeCanvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `decoded_48x36_${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        });
+
+        clearCanvas();
+    </script>
+</body>
+</html>

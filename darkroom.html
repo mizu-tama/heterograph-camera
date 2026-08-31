@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeteroGraph Darkroom</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tifinagh&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #090d16;
+            --bg-card: #0f172a;
+            --bg-input: #020617;
+            --border: #1e293b;
+            --border-focus: #0284c7;
+            --accent: #38bdf8;
+            --accent-btn: #0284c7;
+            --accent-btn-hover: #0369a1;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-main);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 1.3rem;
+            letter-spacing: 3px;
+            font-weight: 600;
+        }
+        p.subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        /* ドロップゾーン */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            background: var(--bg-input);
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(56, 189, 248, 0.05);
+        }
+        .drop-zone p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .drop-zone span.highlight {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* ボタン・フォーム群 */
+        .row-group {
+            display: flex;
+            gap: 8px;
+        }
+        button, label.file-btn {
+            background: var(--accent-btn);
+            color: #ffffff;
+            border: none;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+        button:hover, label.file-btn:hover {
+            background: var(--accent-btn-hover);
+        }
+        button.secondary, label.file-btn.secondary {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+        button.secondary:hover, label.file-btn.secondary:hover {
+            background: #334155;
+            color: #ffffff;
+        }
+        button:disabled {
+            background: #334155;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        /* ステータス表示 */
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-badge span.val {
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        /* 組版・プレビューエリア */
+        .preview-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+        .preview-controls label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .preview-controls input[type="range"] {
+            width: 70px;
+        }
+
+        #output-text {
+            width: 100%;
+            height: 520px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            color: var(--accent);
+            font-size: 13px;
+            line-height: 1.8;
+            letter-spacing: 2px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-y: auto;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #output-text:focus {
+            border-color: var(--border-focus);
+        }
+        .tifinagh-font {
+            font-family: 'Noto Sans Tifinagh', monospace;
+        }
+        .hiragana-font {
+            font-family: 'Noto Serif JP', monospace, serif;
+        }
+
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>HETEROGRAPH DARKROOM</h1>
+        <p class="subtitle">RAW Text Developer & Typesetter</p>
+    </header>
+
+    <div class="container">
+        <!-- 左ペイン: 現像設定 -->
+        <div class="panel">
+            <div class="section-title">1. Raw Input</div>
+            <div class="drop-zone" id="drop-zone">
+                <p>RAWテキスト（.txt）をドロップ<br>または <span class="highlight">ファイルを選択</span></p>
+                <input type="file" id="raw-file-input" accept=".txt">
+            </div>
+
+            <div class="status-badge">
+                <span>検出モード:</span>
+                <span class="val" id="detected-mode">-</span>
+            </div>
+
+            <div class="section-title">2. Developing Profile</div>
+            <div class="status-badge">
+                <span>Profile:</span>
+                <span class="val" id="profile-name">Standard (Random)</span>
+            </div>
+            <div class="row-group">
+                <label for="profile-file-input" class="file-btn secondary" style="flex: 1;">JSON読込</label>
+                <input type="file" id="profile-file-input" accept=".json">
+                <button id="reset-profile-btn" class="secondary" style="flex: 1;">リセット</button>
+            </div>
+
+            <div class="section-title">3. Actions</div>
+            <button id="develop-btn" disabled>現像を実行 (Develop)</button>
+            <button id="export-txt-btn" class="secondary" disabled>現像テキストを保存 (.txt)</button>
+        </div>
+
+        <!-- 右ペイン: 組版プレビュー -->
+        <div class="panel">
+            <div class="preview-controls">
+                <span class="section-title" style="margin-right: auto;">Typesetting Preview</span>
+                <label>
+                    Size:
+                    <input type="range" id="slider-size" min="10" max="24" value="13">
+                </label>
+                <label>
+                    Leading:
+                    <input type="range" id="slider-leading" min="12" max="30" value="18">
+                </label>
+                <label>
+                    Tracking:
+                    <input type="range" id="slider-tracking" min="0" max="10" value="2">
+                </label>
+            </div>
+
+            <div id="output-text" class="hiragana-font" contenteditable="false">RAWテキストファイルを読み込んでください。</div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_PROFILE = {
+            profileName: "Standard (Random)",
+            seed: null,
+            hiragana: {
+                clause: { minLen: 8, maxLen: 25, triggers: ['て', 'で', 'に', 'は', 'が', 'の', 'ば', 'と', 'も', 'へ'], triggerChance: 1.0 },
+                sentence: { minLen: 30, maxLen: 65, triggers: ['た', 'だ', 'る', 'い', 'す', 'よ', 'っ', 'う', 'ね'], triggerChance: 1.0 },
+                forbiddenHead: ['っ', 'ゃ', 'ゅ', 'ょ', 'ん', 'ー']
+            },
+            tifinagh: {
+                word: { minLen: 2, maxLen: 7, triggers: ['ⴰ', 'ⵉ', 'ⵓ', 'ⴻ', 'ⵢ', 'ⵡ'], triggerChance: 1.0 },
+                sentence: { minLen: 35, maxLen: 70, triggers: ['ⴷ', 'ⵏ', 'ⵀ', 'ⵜ', 'ⵔ'], triggerChance: 1.0 }
+            }
+        };
+
+        let currentProfile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
+        let rawContent = "";
+        let currentMode = null; // 'hiragana' | 'tifinagh'
+        let rng = Math.random;
+
+        // シード付き疑似乱数生成器 (Mulberry32)
+        function mulberry32(a) {
+            return function() {
+                let t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        const dropZone = document.getElementById('drop-zone');
+        const rawFileInput = document.getElementById('raw-file-input');
+        const profileFileInput = document.getElementById('profile-file-input');
+        const resetProfileBtn = document.getElementById('reset-profile-btn');
+        const developBtn = document.getElementById('develop-btn');
+        const exportTxtBtn = document.getElementById('export-txt-btn');
+        const outputText = document.getElementById('output-text');
+        const detectedModeSpan = document.getElementById('detected-mode');
+        const profileNameSpan = document.getElementById('profile-name');
+
+        const sliderSize = document.getElementById('slider-size');
+        const sliderLeading = document.getElementById('slider-leading');
+        const sliderTracking = document.getElementById('slider-tracking');
+
+        sliderSize.addEventListener('input', (e) => outputText.style.fontSize = `${e.target.value}px`);
+        sliderLeading.addEventListener('input', (e) => outputText.style.lineHeight = (e.target.value / 10).toFixed(1));
+        sliderTracking.addEventListener('input', (e) => outputText.style.letterSpacing = `${e.target.value}px`);
+
+        dropZone.addEventListener('click', () => rawFileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleRawFile(e.dataTransfer.files[0]);
+        });
+        rawFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleRawFile(e.target.files[0]);
+        });
+
+        function handleRawFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result.trim();
+                const pureHiragana = text.replace(/[^ぁ-ん]/g, '');
+                const pureTifinagh = text.replace(/[^\u2D30-\u2D7F]/g, '');
+
+                if (pureHiragana.length >= pureTifinagh.length && pureHiragana.length > 0) {
+                    currentMode = 'hiragana';
+                    rawContent = pureHiragana;
+                    detectedModeSpan.innerText = `Hiragana (${rawContent.length} chars)`;
+                    outputText.className = 'hiragana-font';
+                } else if (pureTifinagh.length > 0) {
+                    currentMode = 'tifinagh';
+                    rawContent = pureTifinagh;
+                    detectedModeSpan.innerText = `Tifinagh (${rawContent.length} chars)`;
+                    outputText.className = 'tifinagh-font';
+                } else {
+                    alert('有効なHeteroGraphテキストデータが検出されませんでした。');
+                    return;
+                }
+
+                developBtn.disabled = false;
+                developText();
+            };
+            reader.readAsText(file);
+        }
+
+        profileFileInput.addEventListener('change', (e) => {
+            if (!e.target.files.length) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const json = JSON.parse(ev.target.result);
+                    currentProfile = json;
+                    profileNameSpan.innerText = json.profileName || "Custom Profile";
+                    if (rawContent) developText();
+                } catch (err) {
+                    alert('無効なJSONプロファイルです: ' + err.message);
+                }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        resetProfileBtn.addEventListener('click', () => {
+            currentProfile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
+            profileNameSpan.innerText = currentProfile.profileName;
+            profileFileInput.value = '';
+            if (rawContent) developText();
+        });
+
+        developBtn.addEventListener('click', developText);
+
+        function developText() {
+            if (!rawContent || !currentMode) return;
+
+            if (currentProfile.seed !== null && currentProfile.seed !== undefined) {
+                rng = mulberry32(Number(currentProfile.seed));
+            } else {
+                rng = Math.random;
+            }
+
+            let result = '';
+            if (currentMode === 'hiragana') {
+                result = developHiragana(rawContent, currentProfile.hiragana);
+            } else {
+                result = developTifinagh(rawContent, currentProfile.tifinagh);
+            }
+
+            outputText.innerText = result;
+            exportTxtBtn.disabled = false;
+        }
+
+        function developHiragana(raw, conf) {
+            const chars = Array.from(raw);
+            let formatted = '';
+            let sentenceLen = 0;
+            let clauseLen = 0;
+
+            const commaTriggers = new Set(conf.clause.triggers);
+            const periodTriggers = new Set(conf.sentence.triggers);
+            const forbiddenHead = new Set(conf.forbiddenHead || []);
+
+            for (let i = 0; i < chars.length; i++) {
+                const char = chars[i];
+                formatted += char;
+                sentenceLen++;
+                clauseLen++;
+
+                const nextChar = chars[i + 1];
+
+                const isPeriodTrigger = periodTriggers.has(char) && (rng() <= (conf.sentence.triggerChance ?? 1.0));
+                if (sentenceLen >= conf.sentence.minLen && (isPeriodTrigger || sentenceLen >= conf.sentence.maxLen)) {
+                    if (nextChar && forbiddenHead.has(nextChar) && sentenceLen < conf.sentence.maxLen + 5) {
+                        continue;
+                    }
+                    formatted += '。\n';
+                    sentenceLen = 0;
+                    clauseLen = 0;
+                } else if (clauseLen >= conf.clause.minLen && (commaTriggers.has(char) || clauseLen >= conf.clause.maxLen)) {
+                    if (rng() <= (conf.clause.triggerChance ?? 1.0)) {
+                        formatted += '、';
+                        clauseLen = 0;
+                    }
+                }
+            }
+
+            if (!formatted.endsWith('。\n') && !formatted.endsWith('。')) {
+                formatted += '。';
+            }
+            return formatted;
+        }
+
+        function developTifinagh(raw, conf) {
+            const chars = Array.from(raw);
+            let formatted = '';
+            let sentenceLen = 0;
+            let wordLen = 0;
+
+            const wordTriggers = new Set(conf.word.triggers);
+            const periodTriggers = new Set(conf.sentence.triggers);
+
+            for (let i = 0; i < chars.length; i++) {
+                const char = chars[i];
+                formatted += char;
+                sentenceLen++;
+                wordLen++;
+
+                const isPeriodTrigger = periodTriggers.has(char) && (rng() <= (conf.sentence.triggerChance ?? 1.0));
+                if (sentenceLen >= conf.sentence.minLen && (isPeriodTrigger || sentenceLen >= conf.sentence.maxLen)) {
+                    formatted += '.\n';
+                    sentenceLen = 0;
+                    wordLen = 0;
+                } else if (wordLen >= conf.word.minLen && (wordTriggers.has(char) || wordLen >= conf.word.maxLen)) {
+                    if (rng() <= (conf.word.triggerChance ?? 1.0)) {
+                        formatted += ' ';
+                        wordLen = 0;
+                    }
+                }
+            }
+
+            if (!formatted.endsWith('.\n') && !formatted.endsWith('.')) {
+                formatted += '.';
+            }
+            return formatted;
+        }
+
+        exportTxtBtn.addEventListener('click', () => {
+            const text = outputText.innerText;
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `developed_${currentMode}_${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
