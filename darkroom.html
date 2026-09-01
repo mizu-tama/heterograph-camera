@@ -263,6 +263,143 @@
     </div>
 
     <script>
+        /* ==========================================================================
+           1. CORE DEVELOPER ENGINE (純粋な現像ロジック・DOM非依存)
+           - DOMや画面の状態を持たない純粋な文字列現像エンジン
+           - Node.js や CLI スクリプトへもこのクラスをそのまま移植可能
+           ========================================================================== */
+        class HeteroGraphCore {
+            /**
+             * シード付き疑似乱数生成器 (Mulberry32)
+             */
+            static mulberry32(a) {
+                return function() {
+                    let t = a += 0x6D2B79F5;
+                    t = Math.imul(t ^ (t >>> 15), t | 1);
+                    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+                };
+            }
+
+            /**
+             * 乱数生成器のファクトリ関数
+             */
+            static createRng(seed) {
+                if (seed !== null && seed !== undefined) {
+                    return this.mulberry32(Number(seed));
+                }
+                return Math.random;
+            }
+
+            /**
+             * メイン現像エントリーポイント
+             */
+            static develop(rawText, mode, profile) {
+                const rng = this.createRng(profile.seed);
+
+                if (mode === 'hiragana') {
+                    return this.developHiragana(rawText, profile.hiragana, rng);
+                } else if (mode === 'tifinagh') {
+                    return this.developTifinagh(rawText, profile.tifinagh, rng);
+                }
+                return rawText;
+            }
+
+            /**
+             * ひらがな現像ロジック（行頭禁則処理付き）
+             */
+            static developHiragana(raw, conf, rng) {
+                const chars = Array.from(raw);
+                let formatted = '';
+                let sentenceLen = 0;
+                let clauseLen = 0;
+
+                const commaTriggers = new Set(conf.clause.triggers);
+                const periodTriggers = new Set(conf.sentence.triggers);
+                const forbiddenHead = new Set(conf.forbiddenHead || []);
+
+                for (let i = 0; i < chars.length; i++) {
+                    const char = chars[i];
+                    formatted += char;
+                    sentenceLen++;
+                    clauseLen++;
+
+                    const nextChar = chars[i + 1];
+
+                    // 句点・改行判定
+                    const isPeriodTrigger = periodTriggers.has(char) && (rng() <= (conf.sentence.triggerChance ?? 1.0));
+                    if (sentenceLen >= conf.sentence.minLen && (isPeriodTrigger || sentenceLen >= conf.sentence.maxLen)) {
+                        // 行頭禁則処理: 次の文字が禁則文字なら改行を1文字見送る
+                        if (nextChar && forbiddenHead.has(nextChar) && sentenceLen < conf.sentence.maxLen + 5) {
+                            continue;
+                        }
+                        formatted += '。\n';
+                        sentenceLen = 0;
+                        clauseLen = 0;
+                    }
+                    // 読点判定
+                    else if (clauseLen >= conf.clause.minLen && (commaTriggers.has(char) || clauseLen >= conf.clause.maxLen)) {
+                        if (rng() <= (conf.clause.triggerChance ?? 1.0)) {
+                            formatted += '、';
+                            clauseLen = 0;
+                        }
+                    }
+                }
+
+                if (!formatted.endsWith('。\n') && !formatted.endsWith('。')) {
+                    formatted += '。';
+                }
+                return formatted;
+            }
+
+            /**
+             * ティフィナグ現像ロジック
+             */
+            static developTifinagh(raw, conf, rng) {
+                const chars = Array.from(raw);
+                let formatted = '';
+                let sentenceLen = 0;
+                let wordLen = 0;
+
+                const wordTriggers = new Set(conf.word.triggers);
+                const periodTriggers = new Set(conf.sentence.triggers);
+
+                for (let i = 0; i < chars.length; i++) {
+                    const char = chars[i];
+                    formatted += char;
+                    sentenceLen++;
+                    wordLen++;
+
+                    // ピリオド＋改行判定
+                    const isPeriodTrigger = periodTriggers.has(char) && (rng() <= (conf.sentence.triggerChance ?? 1.0));
+                    if (sentenceLen >= conf.sentence.minLen && (isPeriodTrigger || sentenceLen >= conf.sentence.maxLen)) {
+                        formatted += '.\n';
+                        sentenceLen = 0;
+                        wordLen = 0;
+                    }
+                    // スペース（単語区切り）判定
+                    else if (wordLen >= conf.word.minLen && (wordTriggers.has(char) || wordLen >= conf.word.maxLen)) {
+                        if (rng() <= (conf.word.triggerChance ?? 1.0)) {
+                            formatted += ' ';
+                            wordLen = 0;
+                        }
+                    }
+                }
+
+                if (!formatted.endsWith('.\n') && !formatted.endsWith('.')) {
+                    formatted += '.';
+                }
+                return formatted;
+            }
+        }
+
+
+        /* ==========================================================================
+           2. DARKROOM UI & CONTROLLER (画面制御・イベント処理)
+           - ユーザー操作、ファイル入出力、DOMレンダリングを担当
+           ========================================================================== */
+
+        // デフォルト現像プロファイル（標準）
         const DEFAULT_PROFILE = {
             profileName: "Standard (Random)",
             seed: null,
@@ -277,21 +414,12 @@
             }
         };
 
+        // アプリケーション状態
         let currentProfile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
         let rawContent = "";
         let currentMode = null; // 'hiragana' | 'tifinagh'
-        let rng = Math.random;
 
-        // シード付き疑似乱数生成器 (Mulberry32)
-        function mulberry32(a) {
-            return function() {
-                let t = a += 0x6D2B79F5;
-                t = Math.imul(t ^ (t >>> 15), t | 1);
-                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-            };
-        }
-
+        // DOM要素
         const dropZone = document.getElementById('drop-zone');
         const rawFileInput = document.getElementById('raw-file-input');
         const profileFileInput = document.getElementById('profile-file-input');
@@ -302,6 +430,7 @@
         const detectedModeSpan = document.getElementById('detected-mode');
         const profileNameSpan = document.getElementById('profile-name');
 
+        // スライダーコントロール
         const sliderSize = document.getElementById('slider-size');
         const sliderLeading = document.getElementById('slider-leading');
         const sliderTracking = document.getElementById('slider-tracking');
@@ -310,6 +439,7 @@
         sliderLeading.addEventListener('input', (e) => outputText.style.lineHeight = (e.target.value / 10).toFixed(1));
         sliderTracking.addEventListener('input', (e) => outputText.style.letterSpacing = `${e.target.value}px`);
 
+        // ドラッグ＆ドロップ
         dropZone.addEventListener('click', () => rawFileInput.click());
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -322,6 +452,7 @@
             if (e.target.files.length) handleRawFile(e.target.files[0]);
         });
 
+        // RAWテキスト解析
         function handleRawFile(file) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -350,6 +481,7 @@
             reader.readAsText(file);
         }
 
+        // プロファイル読込
         profileFileInput.addEventListener('change', (e) => {
             if (!e.target.files.length) return;
             const reader = new FileReader();
@@ -366,6 +498,7 @@
             reader.readAsText(e.target.files[0]);
         });
 
+        // プロファイルリセット
         resetProfileBtn.addEventListener('click', () => {
             currentProfile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
             profileNameSpan.innerText = currentProfile.profileName;
@@ -373,102 +506,20 @@
             if (rawContent) developText();
         });
 
+        // 現像実行
         developBtn.addEventListener('click', developText);
 
         function developText() {
             if (!rawContent || !currentMode) return;
 
-            if (currentProfile.seed !== null && currentProfile.seed !== undefined) {
-                rng = mulberry32(Number(currentProfile.seed));
-            } else {
-                rng = Math.random;
-            }
-
-            let result = '';
-            if (currentMode === 'hiragana') {
-                result = developHiragana(rawContent, currentProfile.hiragana);
-            } else {
-                result = developTifinagh(rawContent, currentProfile.tifinagh);
-            }
+            // Core Engine を呼び出して整形結果を取得
+            const result = HeteroGraphCore.develop(rawContent, currentMode, currentProfile);
 
             outputText.innerText = result;
             exportTxtBtn.disabled = false;
         }
 
-        function developHiragana(raw, conf) {
-            const chars = Array.from(raw);
-            let formatted = '';
-            let sentenceLen = 0;
-            let clauseLen = 0;
-
-            const commaTriggers = new Set(conf.clause.triggers);
-            const periodTriggers = new Set(conf.sentence.triggers);
-            const forbiddenHead = new Set(conf.forbiddenHead || []);
-
-            for (let i = 0; i < chars.length; i++) {
-                const char = chars[i];
-                formatted += char;
-                sentenceLen++;
-                clauseLen++;
-
-                const nextChar = chars[i + 1];
-
-                const isPeriodTrigger = periodTriggers.has(char) && (rng() <= (conf.sentence.triggerChance ?? 1.0));
-                if (sentenceLen >= conf.sentence.minLen && (isPeriodTrigger || sentenceLen >= conf.sentence.maxLen)) {
-                    if (nextChar && forbiddenHead.has(nextChar) && sentenceLen < conf.sentence.maxLen + 5) {
-                        continue;
-                    }
-                    formatted += '。\n';
-                    sentenceLen = 0;
-                    clauseLen = 0;
-                } else if (clauseLen >= conf.clause.minLen && (commaTriggers.has(char) || clauseLen >= conf.clause.maxLen)) {
-                    if (rng() <= (conf.clause.triggerChance ?? 1.0)) {
-                        formatted += '、';
-                        clauseLen = 0;
-                    }
-                }
-            }
-
-            if (!formatted.endsWith('。\n') && !formatted.endsWith('。')) {
-                formatted += '。';
-            }
-            return formatted;
-        }
-
-        function developTifinagh(raw, conf) {
-            const chars = Array.from(raw);
-            let formatted = '';
-            let sentenceLen = 0;
-            let wordLen = 0;
-
-            const wordTriggers = new Set(conf.word.triggers);
-            const periodTriggers = new Set(conf.sentence.triggers);
-
-            for (let i = 0; i < chars.length; i++) {
-                const char = chars[i];
-                formatted += char;
-                sentenceLen++;
-                wordLen++;
-
-                const isPeriodTrigger = periodTriggers.has(char) && (rng() <= (conf.sentence.triggerChance ?? 1.0));
-                if (sentenceLen >= conf.sentence.minLen && (isPeriodTrigger || sentenceLen >= conf.sentence.maxLen)) {
-                    formatted += '.\n';
-                    sentenceLen = 0;
-                    wordLen = 0;
-                } else if (wordLen >= conf.word.minLen && (wordTriggers.has(char) || wordLen >= conf.word.maxLen)) {
-                    if (rng() <= (conf.word.triggerChance ?? 1.0)) {
-                        formatted += ' ';
-                        wordLen = 0;
-                    }
-                }
-            }
-
-            if (!formatted.endsWith('.\n') && !formatted.endsWith('.')) {
-                formatted += '.';
-            }
-            return formatted;
-        }
-
+        // テキスト保存
         exportTxtBtn.addEventListener('click', () => {
             const text = outputText.innerText;
             const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
