@@ -311,11 +311,11 @@
             flex-shrink: 0;
         }
 
-        /* 用紙サイズ定義（実寸固定） */
-        .paper-sheet.size-a4-p { width: 595px; height: 842px; } /* A4 縦 */
-        .paper-sheet.size-a4-l { width: 842px; height: 595px; } /* A4 横 */
-        .paper-sheet.size-hagaki-p { width: 378px; height: 560px; } /* ハガキ 縦 */
-        .paper-sheet.size-hagaki-l { width: 560px; height: 378px; } /* ハガキ 横 */
+        /* 用紙サイズ定義（論理実寸 mm 指定） */
+        .paper-sheet.size-a4-p { width: 210mm; height: 297mm; } /* A4 縦 (約794×1123px) */
+        .paper-sheet.size-a4-l { width: 297mm; height: 210mm; } /* A4 横 (約1123×794px) */
+        .paper-sheet.size-hagaki-p { width: 100mm; height: 148mm; } /* ハガキ 縦 (約378×560px) */
+        .paper-sheet.size-hagaki-l { width: 148mm; height: 100mm; } /* ハガキ 横 (約560×378px) */
 
         /* 本文組版コンテナ（枠外はみ出しを視覚化） */
         #output-text {
@@ -770,7 +770,7 @@
 
             // 作業台の高さに合わせて用紙を自動縮小
             const workbenchHeight = workbench.clientHeight - 80;
-            const sheetHeight = paperSheet.offsetHeight || 842;
+            const sheetHeight = paperSheet.offsetHeight || 1123;
             const scale = Math.min(1, workbenchHeight / sheetHeight);
 
             paperTransformWrap.style.transform = `scale(${scale.toFixed(2)})`;
