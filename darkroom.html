@@ -6,7 +6,10 @@
     <title>HeteroGraph Darkroom</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tifinagh&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPMincho&family=Noto+Sans+JP:wght@300;400;500&family=Noto+Sans+Tifinagh&family=Noto+Serif+JP:wght@300;400;500&family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet">
+    <style id="page-print-style">
+        @page { size: A4 portrait; margin: 0; }
+    </style>
     <style>
         :root {
             --bg-main: #090d16;
@@ -35,15 +38,15 @@
 
         header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
         h1 {
-            font-size: 1.3rem;
+            font-size: 1.25rem;
             letter-spacing: 3px;
             font-weight: 600;
         }
         p.subtitle {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-muted);
             margin-top: 4px;
             letter-spacing: 1px;
@@ -51,12 +54,13 @@
 
         .container {
             width: 100%;
-            max-width: 960px;
+            max-width: 1280px;
             display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 20px;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
             .container { grid-template-columns: 1fr; }
         }
 
@@ -78,11 +82,48 @@
             font-weight: 700;
         }
 
+        /* フォームコントロール */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .control-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        select, input[type="text"] {
+            background: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            outline: none;
+            width: 100%;
+        }
+        select:focus, input[type="text"]:focus {
+            border-color: var(--border-focus);
+        }
+        .row-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .slider-row {
+            display: grid;
+            grid-template-columns: 70px 1fr 45px;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
         /* ドロップゾーン */
         .drop-zone {
             border: 2px dashed var(--border);
             border-radius: 8px;
-            padding: 24px 16px;
+            padding: 18px 12px;
             text-align: center;
             cursor: pointer;
             background: var(--bg-input);
@@ -93,7 +134,7 @@
             background: rgba(56, 189, 248, 0.05);
         }
         .drop-zone p {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-muted);
         }
         .drop-zone span.highlight {
@@ -101,11 +142,60 @@
             font-weight: 600;
         }
 
-        /* ボタン・フォーム群 */
-        .row-group {
+        /* ステータスバッジ */
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
             display: flex;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
         }
+        .status-badge span.val {
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        /* カラーセレクター */
+        .color-preset-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .color-chip {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+        .color-chip:hover { transform: scale(1.15); }
+        .color-chip.active {
+            border: 2px solid var(--accent);
+            transform: scale(1.15);
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch {
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+        }
+
+        /* ボタン群 */
         button, label.file-btn {
             background: var(--accent-btn);
             color: #ffffff;
@@ -119,9 +209,7 @@
             display: inline-block;
             transition: background 0.2s;
         }
-        button:hover, label.file-btn:hover {
-            background: var(--accent-btn-hover);
-        }
+        button:hover, label.file-btn:hover { background: var(--accent-btn-hover); }
         button.secondary, label.file-btn.secondary {
             background: #1e293b;
             color: #94a3b8;
@@ -131,76 +219,116 @@
             background: #334155;
             color: #ffffff;
         }
+        button.print-btn {
+            background: #0d9488;
+        }
+        button.print-btn:hover {
+            background: #0f766e;
+        }
         button:disabled {
             background: #334155;
             color: #64748b;
             cursor: not-allowed;
         }
 
-        /* ステータス表示 */
-        .status-badge {
-            font-size: 0.75rem;
-            padding: 8px 12px;
-            border-radius: 6px;
-            background: var(--bg-input);
+        /* ==========================================================================
+           作業台 ＆ 用紙シート (Workbench & Print Sheet Preview)
+           ========================================================================== */
+        .workbench {
+            background: #050811;
             border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px 20px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .status-badge span.val {
-            color: var(--accent);
-            font-family: monospace;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 820px;
+            overflow: auto;
         }
 
-        /* 組版・プレビューエリア */
-        .preview-controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 12px;
-        }
-        .preview-controls label {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .preview-controls input[type="range"] {
-            width: 70px;
+        /* 用紙シート（画面表示用シミュレーター） */
+        .paper-sheet {
+            background: #f8f6f0; /* デフォルト：生成り */
+            color: #1c1917;      /* デフォルト：墨色 */
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0,0,0,0.4);
+            transition: background 0.2s ease, color 0.2s ease, width 0.2s ease, min-height 0.2s ease;
+            position: relative;
+            box-sizing: border-box;
+            flex-shrink: 0;
         }
 
+        /* 用紙サイズ定義（96dpi換算での画面プレビュー用実寸比率） */
+        .paper-sheet.size-a4-p { width: 595px; min-height: 842px; } /* A4 縦 */
+        .paper-sheet.size-a4-l { width: 842px; min-height: 595px; } /* A4 横 */
+        .paper-sheet.size-hagaki-p { width: 378px; min-height: 560px; } /* ハガキ 縦 (100x148mm) */
+        .paper-sheet.size-hagaki-l { width: 560px; min-height: 378px; } /* ハガキ 横 (148x100mm) */
+
+        /* 本文組版コンテナ */
         #output-text {
             width: 100%;
-            height: 520px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 24px;
-            color: var(--accent);
-            font-size: 13px;
-            line-height: 1.8;
-            letter-spacing: 2px;
+            height: 100%;
             white-space: pre-wrap;
             word-break: break-all;
-            overflow-y: auto;
             outline: none;
-            transition: border-color 0.2s;
+            box-sizing: border-box;
         }
-        #output-text:focus {
-            border-color: var(--border-focus);
+
+        /* 書体クラス定義 */
+        .font-shippori { font-family: 'Shippori Mincho', 'Noto Serif JP', serif; }
+        .font-noto-serif { font-family: 'Noto Serif JP', serif; }
+        .font-biz-mincho { font-family: 'BIZ UDPMincho', 'Noto Serif JP', serif; }
+        .font-noto-sans { font-family: 'Noto Sans JP', -apple-system, sans-serif; }
+        .font-mono { font-family: monospace; }
+        .font-tifinagh { font-family: 'Noto Sans Tifinagh', monospace; }
+
+        /* 組方向クラス定義 */
+        .dir-horizontal {
+            writing-mode: horizontal-tb;
         }
-        .tifinagh-font {
-            font-family: 'Noto Sans Tifinagh', monospace;
-        }
-        .hiragana-font {
-            font-family: 'Noto Serif JP', monospace, serif;
+        .dir-vertical {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            line-height: 2.2 !important;
         }
 
         input[type="file"] { display: none; }
+
+        /* ==========================================================================
+           印刷専用スタイル (@media print)
+           ========================================================================== */
+        @media print {
+            body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+            }
+            header, .panel, .section-title {
+                display: none !important;
+            }
+            .container {
+                display: block !important;
+                width: 100% !important;
+                max-width: none !important;
+            }
+            .workbench {
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                min-height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            .paper-sheet {
+                background: transparent !important; /* 実際の印刷用紙の地色を活かすため無色 */
+                box-shadow: none !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: auto !important;
+                margin: 0 !important;
+                page-break-after: avoid !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -211,7 +339,7 @@
     </header>
 
     <div class="container">
-        <!-- 左ペイン: 現像設定 -->
+        <!-- 左ペイン: 操作・仕立てパネル -->
         <div class="panel">
             <div class="section-title">1. Raw Input</div>
             <div class="drop-zone" id="drop-zone">
@@ -235,30 +363,100 @@
                 <button id="reset-profile-btn" class="secondary" style="flex: 1;">リセット</button>
             </div>
 
-            <div class="section-title">3. Actions</div>
+            <div class="section-title">3. Paper & Format</div>
+            <div class="control-group">
+                <label class="control-label">用紙サイズ / 向き</label>
+                <select id="select-paper-size">
+                    <option value="size-a4-p">A4 縦 (Portrait 210×297mm)</option>
+                    <option value="size-a4-l">A4 横 (Landscape 297×210mm)</option>
+                    <option value="size-hagaki-p">ハガキ 縦 (Portrait 100×148mm)</option>
+                    <option value="size-hagaki-l">ハガキ 横 (Landscape 148×100mm)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">余白 (Margin)</label>
+                <select id="select-margin">
+                    <option value="15mm">狭め (15mm - データ集積風)</option>
+                    <option value="25mm" selected>標準 (25mm - 書籍・論文風)</option>
+                    <option value="35mm">広め (35mm - ギャラリー展示風)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">用紙プレビュー色 (画面確認用)</label>
+                <select id="select-paper-bg">
+                    <option value="#f8f6f0" selected>生成り (風合い紙・アラベール風)</option>
+                    <option value="#ffffff">純白 (アート紙・コート紙風)</option>
+                    <option value="#e7dec8">クラフト (未晒クラフト紙風)</option>
+                    <option value="#090d16">暗室ダーク (印画紙・モニター風)</option>
+                </select>
+            </div>
+
+            <div class="section-title">4. Typography & Ink</div>
+            <div class="control-group">
+                <label class="control-label">書体 (Font Family)</label>
+                <select id="select-font">
+                    <option value="font-shippori" selected>しっぽり明朝 (墨だまり・古典)</option>
+                    <option value="font-noto-serif">源ノ明朝 / Noto Serif (標準)</option>
+                    <option value="font-biz-mincho">BIZ UDP明朝 (高視認性)</option>
+                    <option value="font-noto-sans">源ノ角ゴシック / Noto Sans</option>
+                    <option value="font-mono">等幅 (Courier / Monospace)</option>
+                    <option value="font-tifinagh">Noto Sans Tifinagh</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">組方向 (Writing Direction)</label>
+                <select id="select-direction">
+                    <option value="dir-horizontal" selected>横組 (Horizontal)</option>
+                    <option value="dir-vertical">縦組 (Vertical RL)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">インク色 (文字色)</label>
+                <div class="color-preset-group">
+                    <div class="color-chip active" style="background: #1c1917;" data-color="#1c1917" title="墨色 (Carbon)"></div>
+                    <div class="color-chip" style="background: #000000;" data-color="#000000" title="漆黒 (Pure Black)"></div>
+                    <div class="color-chip" style="background: #1e3a5f;" data-color="#1e3a5f" title="藍色 (Indigo / 青焼き)"></div>
+                    <div class="color-chip" style="background: #3d2314;" data-color="#3d2314" title="焦茶 (Sepia)"></div>
+                    <div class="color-chip" style="background: #7c2d12;" data-color="#7c2d12" title="茜色 (Terracotta)"></div>
+                    <div class="color-chip" style="background: #0284c7;" data-color="#0284c7" title="暗室シアン (Cyan)"></div>
+                    <div class="color-chip" style="background: #ffffff;" data-color="#ffffff" title="白抜き (White)"></div>
+                    <input type="color" id="custom-ink-color" value="#1c1917" title="カスタムカラー選択">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    <span>Size:</span>
+                    <input type="range" id="slider-size" min="7" max="22" value="10" step="0.5">
+                    <span id="val-size">10pt</span>
+                </div>
+                <div class="slider-row">
+                    <span>Leading:</span>
+                    <input type="range" id="slider-leading" min="14" max="32" value="20">
+                    <span id="val-leading">2.0</span>
+                </div>
+                <div class="slider-row">
+                    <span>Tracking:</span>
+                    <input type="range" id="slider-tracking" min="0" max="8" value="2">
+                    <span id="val-tracking">2px</span>
+                </div>
+            </div>
+
+            <div class="section-title">5. Actions</div>
             <button id="develop-btn" disabled>現像を実行 (Develop)</button>
+            <button id="print-btn" class="print-btn">印刷 / PDF保存 (Print)</button>
             <button id="export-txt-btn" class="secondary" disabled>現像テキストを保存 (.txt)</button>
         </div>
 
-        <!-- 右ペイン: 組版プレビュー -->
-        <div class="panel">
-            <div class="preview-controls">
-                <span class="section-title" style="margin-right: auto;">Typesetting Preview</span>
-                <label>
-                    Size:
-                    <input type="range" id="slider-size" min="10" max="24" value="13">
-                </label>
-                <label>
-                    Leading:
-                    <input type="range" id="slider-leading" min="12" max="30" value="18">
-                </label>
-                <label>
-                    Tracking:
-                    <input type="range" id="slider-tracking" min="0" max="10" value="2">
-                </label>
+        <!-- 右ペイン: 作業台 ＆ 用紙シート -->
+        <div class="workbench">
+            <div id="paper-sheet" class="paper-sheet size-a4-p font-shippori dir-horizontal" style="padding: 25mm;">
+                <div id="output-text" contenteditable="false">RAWテキストファイルを読み込んでください。</div>
             </div>
-
-            <div id="output-text" class="hiragana-font" contenteditable="false">RAWテキストファイルを読み込んでください。</div>
         </div>
     </div>
 
@@ -425,21 +623,90 @@
         const profileFileInput = document.getElementById('profile-file-input');
         const resetProfileBtn = document.getElementById('reset-profile-btn');
         const developBtn = document.getElementById('develop-btn');
+        const printBtn = document.getElementById('print-btn');
         const exportTxtBtn = document.getElementById('export-txt-btn');
         const outputText = document.getElementById('output-text');
+        const paperSheet = document.getElementById('paper-sheet');
         const detectedModeSpan = document.getElementById('detected-mode');
         const profileNameSpan = document.getElementById('profile-name');
+        const pagePrintStyle = document.getElementById('page-print-style');
 
-        // スライダーコントロール
+        // 仕立て・組版コントロール
+        const selectPaperSize = document.getElementById('select-paper-size');
+        const selectMargin = document.getElementById('select-margin');
+        const selectPaperBg = document.getElementById('select-paper-bg');
+        const selectFont = document.getElementById('select-font');
+        const selectDirection = document.getElementById('select-direction');
+        const customInkColor = document.getElementById('custom-ink-color');
+        const colorChips = document.querySelectorAll('.color-chip');
+
         const sliderSize = document.getElementById('slider-size');
         const sliderLeading = document.getElementById('slider-leading');
         const sliderTracking = document.getElementById('slider-tracking');
 
-        sliderSize.addEventListener('input', (e) => outputText.style.fontSize = `${e.target.value}px`);
-        sliderLeading.addEventListener('input', (e) => outputText.style.lineHeight = (e.target.value / 10).toFixed(1));
-        sliderTracking.addEventListener('input', (e) => outputText.style.letterSpacing = `${e.target.value}px`);
+        const valSize = document.getElementById('val-size');
+        const valLeading = document.getElementById('val-leading');
+        const valTracking = document.getElementById('val-tracking');
 
-        // ドラッグ＆ドロップ
+        // 用紙・組版スタイル更新ハンドラ
+        function updateSheetLayout() {
+            // 用紙クラスの適用
+            paperSheet.className = `paper-sheet ${selectPaperSize.value} ${selectFont.value} ${selectDirection.value}`;
+            paperSheet.style.padding = selectMargin.value;
+            paperSheet.style.backgroundColor = selectPaperBg.value;
+            paperSheet.style.color = currentInkColor;
+
+            // テキストスタイル
+            outputText.style.fontSize = `${sliderSize.value}pt`;
+            outputText.style.lineHeight = (sliderLeading.value / 10).toFixed(1);
+            outputText.style.letterSpacing = `${sliderTracking.value}px`;
+
+            valSize.innerText = `${sliderSize.value}pt`;
+            valLeading.innerText = (sliderLeading.value / 10).toFixed(1);
+            valTracking.innerText = `${sliderTracking.value}px`;
+
+            // 印刷用 @page サイズの動的切り替え
+            updatePagePrintRule(selectPaperSize.value);
+        }
+
+        function updatePagePrintRule(sizeKey) {
+            let pageRule = '@page { size: A4 portrait; margin: 0; }';
+            if (sizeKey === 'size-a4-l') pageRule = '@page { size: A4 landscape; margin: 0; }';
+            else if (sizeKey === 'size-hagaki-p') pageRule = '@page { size: 100mm 148mm; margin: 0; }';
+            else if (sizeKey === 'size-hagaki-l') pageRule = '@page { size: 148mm 100mm; margin: 0; }';
+            pagePrintStyle.innerHTML = pageRule;
+        }
+
+        // イベントリスナー登録
+        selectPaperSize.addEventListener('change', updateSheetLayout);
+        selectMargin.addEventListener('change', updateSheetLayout);
+        selectPaperBg.addEventListener('change', updateSheetLayout);
+        selectFont.addEventListener('change', updateSheetLayout);
+        selectDirection.addEventListener('change', updateSheetLayout);
+
+        sliderSize.addEventListener('input', updateSheetLayout);
+        sliderLeading.addEventListener('input', updateSheetLayout);
+        sliderTracking.addEventListener('input', updateSheetLayout);
+
+        // インク色プリセット選択
+        colorChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                colorChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                currentInkColor = chip.dataset.color;
+                customInkColor.value = currentInkColor;
+                updateSheetLayout();
+            });
+        });
+
+        // カスタムカラーピッカー
+        customInkColor.addEventListener('input', (e) => {
+            colorChips.forEach(c => c.classList.remove('active'));
+            currentInkColor = e.target.value;
+            updateSheetLayout();
+        });
+
+        // ドラッグ＆ドロップ設定
         dropZone.addEventListener('click', () => rawFileInput.click());
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -464,17 +731,18 @@
                     currentMode = 'hiragana';
                     rawContent = pureHiragana;
                     detectedModeSpan.innerText = `Hiragana (${rawContent.length} chars)`;
-                    outputText.className = 'hiragana-font';
+                    if (selectFont.value === 'font-tifinagh') selectFont.value = 'font-shippori';
                 } else if (pureTifinagh.length > 0) {
                     currentMode = 'tifinagh';
                     rawContent = pureTifinagh;
                     detectedModeSpan.innerText = `Tifinagh (${rawContent.length} chars)`;
-                    outputText.className = 'tifinagh-font';
+                    selectFont.value = 'font-tifinagh';
                 } else {
-                    alert('有効なHeteroGraphテキストデータが検出されませんでした。');
+                    alert('有効なHeteroGraph RAWテキストデータが検出されませんでした。');
                     return;
                 }
 
+                updateSheetLayout();
                 developBtn.disabled = false;
                 developText();
             };
@@ -519,6 +787,11 @@
             exportTxtBtn.disabled = false;
         }
 
+        // 印刷 / PDF出力
+        printBtn.addEventListener('click', () => {
+            window.print();
+        });
+
         // テキスト保存
         exportTxtBtn.addEventListener('click', () => {
             const text = outputText.innerText;
@@ -530,6 +803,9 @@
             a.click();
             URL.revokeObjectURL(url);
         });
+
+        // 初期レイアウト適用
+        updateSheetLayout();
     </script>
 </body>
 </html>
